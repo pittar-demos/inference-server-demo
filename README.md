@@ -14,7 +14,7 @@ Next, create a Tekton pipeline to download the model from Huggingface to a local
 oc apply -k manifests/pipeline
 ```
 
-Using the Pipline GUI, start the pipeline and use the following as the model to download:
+Using the Pipelines GUI, start the pipeline and use the following as the model to download:
 
 ```
 RedHatAI/granite-3.1-8b-instruct-quantized.w4a16
@@ -35,7 +35,7 @@ INFERENCE_URL=$(oc get route granite -o jsonpath='{.spec.host}')
 ```
 
 ```
-curl -X POST https://$INFERENCE_URL$/v1/chat/completions \
+curl -X POST https://$INFERENCE_URL/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "granite-3.1-8b-instruct-quantized.w4a16",
