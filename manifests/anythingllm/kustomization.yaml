@@ -1,6 +1,7 @@
 namespace: inference-demo
 
 resources:
-  - rhaiis.yaml
+  - config-secret.yaml
+  - deployment.yaml
   - service.yaml
   - route.yaml
