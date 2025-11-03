@@ -1,0 +1,20 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  labels:
+    dashboards: grafana
+  name: grafana
+spec:
+  config:
+    log:
+      mode: console
+    security:
+      admin_password: secret
+      admin_user: root
+  route:
+    spec:
+      port:
+        targetPort: grafana
+      tls:
+        insecureEdgeTerminationPolicy: Redirect
+        termination: edge

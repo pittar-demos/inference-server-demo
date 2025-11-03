@@ -1,10 +1,13 @@
 kind: Service
 apiVersion: v1
 metadata:
+  labels:
+    metrics: 'true'
   name: granite
 spec:
   ports:
-    - protocol: TCP
+    - name: granite
+      protocol: TCP
       port: 80
       targetPort: 8000
   internalTrafficPolicy: Cluster

@@ -1,0 +1,14 @@
+apiVersion: monitoring.rhobs/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    metrics: workload-monitor
+  name: llm-monitor
+spec:
+  endpoints:
+    - interval: 30s
+      path: /metrics
+      port: vllm
+  selector:
+    matchLabels:
+      metrics: 'true'

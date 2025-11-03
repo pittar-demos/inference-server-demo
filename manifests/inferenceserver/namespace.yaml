@@ -1,0 +1,7 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  labels:
+    kubernetes.io/metadata.name: inference-demo
+    monitoring.rhobs/stack: workload-monitoring
+  name: inference-demo

@@ -1,0 +1,19 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: prometheus
+spec:
+  allowCrossNamespaceImport: false
+  datasource:
+    access: proxy
+    isDefault: true
+    jsonData:
+      timeInterval: 5s
+      tlsSkipVerify: true
+    name: prometheus
+    type: prometheus
+    url: 'http://workload-monitoring-stack-prometheus.workload-monitoring.svc.cluster.local:9090'
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  resyncPeriod: 10m0s
