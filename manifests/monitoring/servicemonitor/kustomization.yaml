@@ -1,0 +1,4 @@
+namespace: inference-demo
+
+resources:
+  - servicemonitor.yaml

@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   labels:
-    metrics: 'true'
+    metrics: workload-monitor
   name: granite
 spec:
   ports:

@@ -12,7 +12,7 @@ spec:
       tlsSkipVerify: true
     name: prometheus
     type: prometheus
-    url: 'http://workload-monitoring-stack-prometheus.workload-monitoring.svc.cluster.local:9090'
+    url: 'http://workload-monitoring-stack-prometheus.llm-monitoring.svc.cluster.local:9090'
   instanceSelector:
     matchLabels:
       dashboards: grafana

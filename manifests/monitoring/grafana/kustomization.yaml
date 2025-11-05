@@ -1,0 +1,7 @@
+namespace: llm-monitoring
+
+resources:
+  - grafana.yaml
+  - grafana-datasource.yaml
+  - grafana-dashboard-perf.yaml
+  - grafana-dashboard-query.yaml

@@ -1,0 +1,4 @@
+namespace: llm-monitoring
+
+resources:
+  - monitoringstack.yaml

@@ -1,6 +1,7 @@
 namespace: inference-demo
 
 resources:
+  - namespace.yaml
   - model-storage.yaml
   - download-model-task.yaml
   - download-model-pipeline.yaml
