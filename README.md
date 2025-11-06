@@ -72,3 +72,6 @@ This step will requires that you have already installed the Red Hat "Cluster Obs
 
 The next step will create a new namespace called `llm-monitoring` where Grafana and Prometheus will be deployed.  It will also create the required `GrafanaDataSource` and `GrafanaDashboard` instances and a `ServiceMonitor` to scrape metrics from the vLLM deployment.
 
+```
+oc apply -k manifests/monitoring
+```
