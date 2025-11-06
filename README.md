@@ -2,6 +2,14 @@
 
 In this demo, we will run a [Granite model](https://huggingface.co/RedHatAI/granite-3.1-8b-instruct-quantized.w4a16) using Red Hat AI Inference Server (vLLM) on OpenShift.
 
+## Prerequisites
+
+* Node Feature Discovery (NFD) operator deployed and a default instance created.
+* Nvidia GPU operator deployed and a default instance created to install drivers.
+* OpenShift Pipelines operator deployed (to enable the pipline that downloads models from Huggingface).
+
+## Getting Started:  Download a Model
+
 First, we will create a new project called `inference-demo` as well as a simple Tekton pipeline to download a model from Huggingface into a PVC.  To do this, run:
 
 ```
@@ -14,7 +22,11 @@ From the OpenShift UI, navigate to the `inference-demo` project and find the new
 RedHatAI/granite-3.1-8b-instruct-quantized.w4a16
 ```
 
-This pipeline will take a few minutes, as it is downloading the Granite LLM from Huggingface.  When it's done (green) you can deploy Red Hat AI Inference Server.  This will create a standard `Deployment` using the Nvidia version of the Red Hat supported vLLM image (Red Hat AI Inference Server) that serves the model that you just downloaded to the `models` PVC.  It also creates a `Service` and a `Route` so the model can be accessed.
+This pipeline will take a few minutes, as it is downloading the Granite LLM from Huggingface.  When it's done (green) you can deploy Red Hat AI Inference Server. 
+
+## Run Your Model
+
+ This next step will create a standard `Deployment` using the Nvidia version of the Red Hat supported vLLM image (Red Hat AI Inference Server) that serves the model that you just downloaded to the `models` PVC.  It also creates a `Service` and a `Route` so the model can be accessed.
 
 ```
 oc apply -k manifests/inferenceserver
@@ -66,7 +78,7 @@ oc apply -f manifests/monitoring/nvidia/nvidia-dashboard-configmap.yaml
 
 Now, when you go to "Observe -> Dashboards" you should find a new "NVIDIA DCGM Exporter Dashboard" available that shows stats for power usage, temperature, gpu utilization, etc...
 
-## vLLM Stats Dashaboard
+### vLLM Stats Dashaboards
 
 This step will requires that you have already installed the Red Hat "Cluster Observability Operator" (COO) and the community Grafana operator.
 
