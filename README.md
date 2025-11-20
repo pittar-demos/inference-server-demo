@@ -19,23 +19,39 @@ oc apply -k manifests/pipeline
 From the OpenShift UI, navigate to the `inference-demo` project and find the new Pipelines. Start the pipeline and use the following as the model to download, and make sure to select the PVC named `models` as the model workspace.
 
 ```
-RedHatAI/granite-3.1-8b-instruct-quantized.w4a16
+Model Name: RedHatAI/granite-3.1-8b-instruct-quantized.w4a16
+Model Directory: granite31-8b
+```
+
+If you prefer Qwen 3:
+
+```
+Model Name: RedHatAI/Qwen3-8B-quantized.w4a16
+Model Directory: qwen3-8b
 ```
 
 This pipeline will take a few minutes, as it is downloading the Granite LLM from Huggingface.  When it's done (green) you can deploy Red Hat AI Inference Server. 
 
 ## Run Your Model
 
- This next step will create a standard `Deployment` using the Nvidia version of the Red Hat supported vLLM image (Red Hat AI Inference Server) that serves the model that you just downloaded to the `models` PVC.  It also creates a `Service` and a `Route` so the model can be accessed.
+This next step will create a standard `Deployment` using the Nvidia version of the Red Hat supported vLLM image (Red Hat AI Inference Server) that serves the model that you just downloaded to the `models` PVC.  It also creates a `Service` and a `Route` so the model can be accessed.
+
+Depending on the model that you downloaded, run one of the following commands:
 
 ```
-oc apply -k manifests/inferenceserver
+oc apply -k manifests/inferenceserver/grante31-8b
+```
+
+or
+
+```
+oc apply -k manifests/inferenceserver/qwen3-8b
 ```
 
 Depending on your hardware, it will take a few minutes to fully initiallize.  You can follow the pod logs to watch the progress.  The model will be ready when you see `INFO: Application startup complete.` in the logs. Once this is loaded up, you can get the URL for your inference server and send your first request!
 
 ```
-INFERENCE_URL=$(oc get route granite -o jsonpath='{.spec.host}' -n inference-demo)
+INFERENCE_URL=$(oc get route rhaiis -o jsonpath='{.spec.host}' -n inference-demo)
 ```
 
 ```
@@ -43,6 +59,18 @@ curl -X POST https://$INFERENCE_URL/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "granite-3.1-8b-instruct-quantized.w4a16",
+    "messages": [{"role": "user", "content": "What is AI?"}],
+    "temperature": 0.1
+  }'
+```
+
+or
+
+```
+curl -X POST https://$INFERENCE_URL/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Qwen3-8B-quantized.w4a16",
     "messages": [{"role": "user", "content": "What is AI?"}],
     "temperature": 0.1
   }'

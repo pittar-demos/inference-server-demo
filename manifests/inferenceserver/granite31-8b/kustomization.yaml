@@ -10,7 +10,7 @@ patches:
   patch: |-
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --model=/model/granite8b
+      value: --model=/model/granite31-8b
     - op: add
       path: /spec/template/spec/containers/0/args/-
       value: --served-model-name=granite-3.1-8b-instruct-quantized.w4a16

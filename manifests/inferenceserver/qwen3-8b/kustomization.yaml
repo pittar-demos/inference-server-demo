@@ -10,7 +10,7 @@ patches:
   patch: |-
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --model=/model/qwen38b
+      value: --model=/model/qwen3-8b
     - op: add
       path: /spec/template/spec/containers/0/args/-
       value: --served-model-name=Qwen3-8B-quantized.w4a16
