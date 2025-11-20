@@ -7,11 +7,17 @@ spec:
     - description: Model to download.
       name: MODEL
       type: string
+    - description: Download directory.
+      name: MODEL_DIR
+      type: string
   steps:
     - args:
         - |-
-          echo "Clean models dir."
-          rm -rf $(workspaces.model.path)/*
+          echo "Create model dir if it doesn't exist."
+          mkdir -p $(workspaces.model.path)/$(params.MODEL_DIR)
+
+          echo "Clean models dir if it's not empty."
+          rm -rf $(workspaces.model.path)/$(params.MODEL_DIR)/*
 
           echo "Create and sourc venv"
           python -m venv my_env
@@ -21,7 +27,7 @@ spec:
 
           echo Downloading Model
 
-          hf download $(params.MODEL) --local-dir=$(workspaces.model.path)
+          hf download $(params.MODEL) --local-dir=$(workspaces.model.path)/$(params.MODEL_DIR)
 
           echo -----------------------------------
       command:

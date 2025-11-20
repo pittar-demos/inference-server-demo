@@ -7,11 +7,16 @@ spec:
     - description: Model to download.
       name: MODEL
       type: string
+    - description: Download directory.
+      name: MODEL_DIR
+      type: string
   tasks:
     - name: download-model
       params:
         - name: MODEL
           value: $(params.MODEL)
+        - name: MODEL_DIR
+          value: $(params.MODEL_DIR)
       taskRef:
         params:
           - name: kind

@@ -1,0 +1,16 @@
+namespace: inference-demo
+
+resources:
+  - ../base
+
+patches:
+- target:
+    kind: Deployment
+    name: rhaiis
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --model=/model/qwen38b
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --served-model-name=Qwen3-8B-quantized.w4a16
