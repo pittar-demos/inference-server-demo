@@ -1,0 +1,22 @@
+namespace: inference-demo
+
+resources:
+  - ../base
+
+patches:
+- target:
+    kind: Deployment
+    name: rhaiis
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --model=/model/qwen3-14b
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --served-model-name=Qwen3-14B-quantized.w4a16
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --gpu-memory-utilization=0.92
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-model-len=22464
