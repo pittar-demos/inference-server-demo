@@ -10,10 +10,13 @@ patches:
   patch: |-
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --model=/model/granite31-8b
+      value: --model=/model/qwen25coder-7b
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --served-model-name=granite-3.1-8b-instruct-quantized.w4a16
+      value: --served-model-name=Qwen2.5-Coder-7B-Instruct-FP8-dynamic
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --max-model-len=59520
+      value: --gpu-memory-utilization=0.92
+    # - op: add
+    #   path: /spec/template/spec/containers/0/args/-
+    #   value: --max-model-len=22464
