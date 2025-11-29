@@ -1,4 +1,5 @@
-namespace: llm-monitoring
+namespace: workload-monitoring
 
 resources:
+  - namespace.yaml
   - monitoringstack.yaml

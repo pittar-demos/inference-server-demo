@@ -1,4 +1,4 @@
-namespace: llm-monitoring
+namespace: workload-monitoring
 
 resources:
   - grafana.yaml
