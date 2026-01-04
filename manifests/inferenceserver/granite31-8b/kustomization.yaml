@@ -17,3 +17,9 @@ patches:
     - op: add
       path: /spec/template/spec/containers/0/args/-
       value: --max-model-len=59520
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --enable-auto-tool-choice
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --tool-call-parser=granite

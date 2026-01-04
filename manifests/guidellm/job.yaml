@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: guidellm-benchmark-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: guidellm
+        image: ghcr.io/vllm-project/guidellm:v0.5.0
+        env:
+        # - name: HF_TOKEN
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: huggingface-secret
+        #       key: hf_token
+        - name: HOME
+          value: /results
+        - name: HF_HOME
+          value: /results/.cache
+        command: ["guidellm"]
+        args:
+        - "benchmark"
+        - "run"
+        - "--target"
+        - "https://rhaiis-inference-demo.apps.prime.pitt.ca"
+        - "--processor"
+        - "RedHatAI/granite-3.1-8b-instruct-quantized.w4a16"
+        - "--data"
+        - '{"prompt_tokens":1024,"output_tokens":512}'
+        - "--rate-type"
+        - "concurrent"
+        - "--max-seconds"
+        - "180"
+        - "--rate"
+        - "1,2,5,10"
+        - "--warmup"
+        - "0.1"
+        - "--output-dir"
+        - "/results"
+        - "--outputs"
+        - "benchmark-results.json,benchmark-results.html"
+        volumeMounts:
+        - name: results-volume
+          mountPath: /results
+      volumes:
+      - name: results-volume
+        persistentVolumeClaim:
+          claimName: guidellm-results-pvc
+      restartPolicy: Never
+  backoffLimit: 1
