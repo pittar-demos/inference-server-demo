@@ -39,7 +39,7 @@ This next step will create a standard `Deployment` using the Nvidia version of t
 Depending on the model that you downloaded, run one of the following commands:
 
 ```
-oc apply -k manifests/inferenceserver/grante31-8b
+oc apply -k manifests/inferenceserver/granite31-8b
 ```
 
 or
