@@ -16,6 +16,10 @@ spec:
       labels:
         app: rhaiis
     spec:
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
       volumes:
         - name: model-volume
           persistentVolumeClaim:
