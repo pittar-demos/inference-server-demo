@@ -17,7 +17,7 @@ class VoxtralClient:
         self.transcript = ""
         self.lock = asyncio.Lock()
 
-    async def connect(self, send_commit=False):
+    async def connect(self, send_commit=False, wait_for_session=True):
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
         if not ws_url.endswith("/realtime"):
             ws_url = f"{ws_url.rstrip('/')}/realtime"
@@ -25,8 +25,10 @@ class VoxtralClient:
         # Increased timeout and ping for OpenShift stability
         self.ws = await websockets.connect(ws_url, ping_interval=20, ping_timeout=20)
 
-        # Wait for session.created from server
-        await self.ws.recv()
+        # Wait for session.created from server (only for initial connection)
+        if wait_for_session:
+            session_msg = await self.ws.recv()
+            logger.info(f"Received: {session_msg[:100]}")
 
         init_event = {
             "type": "session.update",
@@ -53,7 +55,11 @@ class VoxtralClient:
 
         async with self.lock:
             try:
+                ws_state = "None" if self.ws is None else f"open={getattr(self.ws, 'open', 'unknown')}"
+                logger.info(f"Stream audio called, ws state: {ws_state}")
+
                 if self.ws is None or not getattr(self.ws, "open", False):
+                    logger.info("Reconnecting...")
                     await self.connect()
 
                 sr, data = audio
@@ -114,7 +120,7 @@ class VoxtralClient:
             # Connect to WebSocket
             async with self.lock:
                 if self.ws is None or not getattr(self.ws, "open", False):
-                    await self.connect(send_commit=True)
+                    await self.connect(send_commit=True, wait_for_session=True)
 
                 # Send audio in chunks with small delays to simulate real-time
                 chunk_size = 16000  # 1 second at 16kHz
