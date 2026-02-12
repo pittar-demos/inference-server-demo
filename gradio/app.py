@@ -89,10 +89,10 @@ class VoxtralClient:
                 }))
 
                 # Try to catch any incoming text deltas
+                # Use longer timeout for commodity hardware (RTX 5060 Ti needs time to process)
                 try:
                     while True:
-                        # Ultra-short timeout to prevent UI lag
-                        raw = await asyncio.wait_for(self.ws.recv(), timeout=0.01)
+                        raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
                         resp = json.loads(raw)
                         t = resp.get("type")
 
@@ -107,6 +107,7 @@ class VoxtralClient:
                         elif t == "error":
                             logger.error(f"vLLM Error: {resp.get('error')}")
                 except asyncio.TimeoutError:
+                    # No response yet - VAD still waiting for silence
                     pass
 
             except Exception as e:
