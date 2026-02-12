@@ -18,7 +18,7 @@ class VoxtralClient:
         self.lock = asyncio.Lock()
         self.audio_buffer = []
         self.buffer_duration = 0.0  # Track accumulated audio duration in seconds
-        self.commit_threshold = 2.0  # Commit every 2 seconds for better context
+        self.commit_threshold = 4.0  # Commit every 4 seconds for smoother output with more context
 
     async def connect(self, send_commit=False, wait_for_session=True, use_vad=True):
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
@@ -133,7 +133,7 @@ class VoxtralClient:
                     # Use longer timeout for commodity hardware (RTX 5060 Ti needs time to process)
                     try:
                         while True:
-                            raw = await asyncio.wait_for(self.ws.recv(), timeout=1.0)
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=2.0)
                             resp = json.loads(raw)
                             t = resp.get("type")
 
