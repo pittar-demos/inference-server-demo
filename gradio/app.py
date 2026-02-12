@@ -19,6 +19,7 @@ class VoxtralClient:
         self.audio_buffer = []
         self.buffer_duration = 0.0  # Track accumulated audio duration in seconds
         self.commit_threshold = 4.0  # Commit every 4 seconds for smoother output with more context
+        self.generation_in_progress = False  # Track if vLLM is currently generating
 
     async def connect(self, send_commit=False, wait_for_session=True, use_vad=True):
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
@@ -63,6 +64,7 @@ class VoxtralClient:
         """Clear the transcript and audio buffer."""
         self.transcript = ""
         self.buffer_duration = 0.0
+        self.generation_in_progress = False
         return ""
 
     async def stop_streaming(self):
@@ -77,6 +79,7 @@ class VoxtralClient:
                 finally:
                     self.ws = None
                     self.buffer_duration = 0.0
+                    self.generation_in_progress = False
         return self.transcript
 
     async def stream_audio_translate(self, audio, source_lang, target_lang):
@@ -100,6 +103,7 @@ class VoxtralClient:
                     # Connect with translation instructions
                     await self.connect_translate(source_lang, target_lang)
                     self.buffer_duration = 0.0
+                    self.generation_in_progress = False
 
                 sr, data = audio
                 if sr != 16000:
@@ -115,16 +119,22 @@ class VoxtralClient:
                 chunk_duration = len(data) / 16000.0
                 self.buffer_duration += chunk_duration
 
-                if self.buffer_duration >= self.commit_threshold:
+                # Only commit if no generation is in progress and we have enough audio
+                should_commit = (self.buffer_duration >= self.commit_threshold and
+                                not self.generation_in_progress)
+
+                if should_commit:
+                    self.generation_in_progress = True
                     await self.ws.send(json.dumps({
                         "type": "input_audio_buffer.commit"
                     }))
                     logger.info(f"Committed {self.buffer_duration:.2f}s for translation")
                     self.buffer_duration = 0.0
 
+                    # Collect all deltas until generation completes
                     try:
                         while True:
-                            raw = await asyncio.wait_for(self.ws.recv(), timeout=2.0)
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=3.0)
                             resp = json.loads(raw)
                             t = resp.get("type")
 
@@ -135,10 +145,18 @@ class VoxtralClient:
                                 if delta:
                                     logger.info(f"Translation: got delta '{delta[:50]}'")
                                     self.transcript += delta
+                            elif t == "transcription.done":
+                                logger.info("Translation generation complete")
+                                self.generation_in_progress = False
+                                break
                             elif t == "error":
                                 logger.error(f"vLLM Error: {resp.get('error')}")
+                                self.generation_in_progress = False
+                                break
                     except asyncio.TimeoutError:
-                        pass
+                        # Generation might have finished without sending done event
+                        logger.info("Timeout waiting for generation completion")
+                        self.generation_in_progress = False
 
             except Exception as e:
                 logger.error(f"Translation stream error: {e}")
@@ -193,6 +211,7 @@ class VoxtralClient:
                     # Connect without Server VAD for streaming (VAD doesn't work with rapid chunks)
                     await self.connect(use_vad=False)
                     self.buffer_duration = 0.0  # Reset buffer on reconnect
+                    self.generation_in_progress = False
 
                 sr, data = audio
                 # Strict 16kHz conversion
@@ -211,10 +230,12 @@ class VoxtralClient:
                 chunk_duration = len(data) / 16000.0
                 self.buffer_duration += chunk_duration
 
-                # Only commit when we've accumulated enough audio for context
-                should_commit = self.buffer_duration >= self.commit_threshold
+                # Only commit if no generation is in progress and we have enough audio
+                should_commit = (self.buffer_duration >= self.commit_threshold and
+                                not self.generation_in_progress)
 
                 if should_commit:
+                    self.generation_in_progress = True
                     await self.ws.send(json.dumps({
                         "type": "input_audio_buffer.commit"
                     }))
@@ -225,7 +246,7 @@ class VoxtralClient:
                     # Use longer timeout for commodity hardware (RTX 5060 Ti needs time to process)
                     try:
                         while True:
-                            raw = await asyncio.wait_for(self.ws.recv(), timeout=2.0)
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=3.0)
                             resp = json.loads(raw)
                             t = resp.get("type")
 
@@ -237,11 +258,18 @@ class VoxtralClient:
                                 if delta:
                                     logger.info(f"Streaming: got delta '{delta[:50]}'")
                                     self.transcript += delta
+                            elif t == "transcription.done":
+                                logger.info("Transcription generation complete")
+                                self.generation_in_progress = False
+                                break
                             elif t == "error":
                                 logger.error(f"vLLM Error: {resp.get('error')}")
+                                self.generation_in_progress = False
+                                break
                     except asyncio.TimeoutError:
-                        # Processing might still be ongoing
-                        pass
+                        # Generation might have finished without sending done event
+                        logger.info("Timeout waiting for generation completion")
+                        self.generation_in_progress = False
 
             except Exception as e:
                 logger.error(f"Stream error: {e}")
