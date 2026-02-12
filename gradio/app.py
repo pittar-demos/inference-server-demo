@@ -136,10 +136,10 @@ class VoxtralClient:
                     except asyncio.TimeoutError:
                         pass
 
-                # Signal that we're done sending audio and want a response
-                logger.info("All audio sent. Requesting response from vLLM...")
+                # Signal that we're done sending audio - commit the buffer
+                logger.info("All audio sent. Committing audio buffer...")
                 await self.ws.send(json.dumps({
-                    "type": "response.create"
+                    "type": "input_audio_buffer.commit"
                 }))
 
                 # Wait for the complete response
