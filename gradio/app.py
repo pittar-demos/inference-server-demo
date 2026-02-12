@@ -392,18 +392,12 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
             with gr.Row():
                 clear_btn = gr.Button("🗑️ Clear Transcript", variant="secondary")
 
-            # Stream event with proper stop handling
+            # Stream event - let Gradio handle stop naturally
             audio_in.stream(
                 fn=client.stream_audio,
                 inputs=[audio_in],
                 outputs=[text_out],
                 show_progress="hidden"
-            )
-
-            # Handle stop recording gracefully
-            audio_in.stop_recording(
-                fn=client.stop_streaming,
-                outputs=[text_out]
             )
 
             clear_btn.click(fn=client.reset_transcript, outputs=[text_out])
@@ -432,18 +426,12 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
             with gr.Row():
                 clear_btn_translate = gr.Button("🗑️ Clear Translation", variant="secondary")
 
-            # Stream event for translation
+            # Stream event for translation - let Gradio handle stop naturally
             audio_in_translate.stream(
                 fn=client.stream_audio_translate,
                 inputs=[audio_in_translate, source_lang, target_lang],
                 outputs=[text_out_translate],
                 show_progress="hidden"
-            )
-
-            # Handle stop recording gracefully
-            audio_in_translate.stop_recording(
-                fn=client.stop_streaming,
-                outputs=[text_out_translate]
             )
 
             clear_btn_translate.click(fn=client.reset_transcript, outputs=[text_out_translate])
