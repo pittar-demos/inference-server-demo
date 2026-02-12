@@ -17,7 +17,7 @@ class VoxtralClient:
         self.transcript = ""
         self.lock = asyncio.Lock()
 
-    async def connect(self):
+    async def connect(self, send_commit=False):
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
         if not ws_url.endswith("/realtime"):
             ws_url = f"{ws_url.rstrip('/')}/realtime"
@@ -40,10 +40,12 @@ class VoxtralClient:
         }
         await self.ws.send(json.dumps(init_event))
 
-        # Signal ready - this is critical for vLLM to start processing audio!
-        await self.ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-
-        logger.info("Connection established with Server VAD enabled.")
+        # Only send commit for file uploads, not for streaming
+        if send_commit:
+            await self.ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+            logger.info("Connection established with Server VAD enabled (with commit).")
+        else:
+            logger.info("Connection established with Server VAD enabled.")
 
     async def stream_audio(self, audio):
         if audio is None:
@@ -112,7 +114,7 @@ class VoxtralClient:
             # Connect to WebSocket
             async with self.lock:
                 if self.ws is None or not getattr(self.ws, "open", False):
-                    await self.connect()
+                    await self.connect(send_commit=True)
 
                 # Send audio in chunks with small delays to simulate real-time
                 chunk_size = 16000  # 1 second at 16kHz
