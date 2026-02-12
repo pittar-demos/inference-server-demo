@@ -1,0 +1,90 @@
+namespace: inference-demo
+
+resources:
+  - ../base
+  - pvc.yaml
+
+patches:
+- target:
+    kind: Deployment
+    name: rhaiis
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: registry.redhat.io/rhaiis-preview/vllm-cuda-rhel9:voxtral-realtime
+    - op: remove
+      path: /spec/template/spec/volumes/0
+    - op: remove
+      path: /spec/template/spec/containers/0/volumeMounts/0
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: HUGGING_FACE_HUB_TOKEN
+        value: ""
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: HF_HOME
+        value: "/hf"
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: HF_HUB_OFFLINE
+        value: "0"
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: TRANSFORMERS_OFFLINE
+        value: "0"
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: VLLM_DISABLE_COMPILE_CACHE
+        value: "1"
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --model=mistralai/Voxtral-Mini-4B-Realtime-2602
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --tokenizer-mode=mistral
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --config-format=mistral
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --load-format=mistral
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --trust-remote-code
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-model-len=14000
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-num-batched-tokens=8192
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-num-seqs=16
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --gpu-memory-utilization=0.90
+    - op: replace
+      path: /spec/template/spec/containers/0/args/1
+      value: --tensor-parallel-size=1
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --compilation-config={"cudagraph_mode":"PIECEWISE"}
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --host=0.0.0.0
+    - op: add
+      path: /spec/template/spec/volumes/-
+      value:
+        name: hf-cache
+        persistentVolumeClaim:
+          claimName: voxtral-hf-cache
+    - op: add
+      path: /spec/template/spec/containers/0/volumeMounts/-
+      value:
+        name: hf-cache
+        mountPath: /hf

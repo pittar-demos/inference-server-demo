@@ -1,2 +1,4 @@
 .DS_Store
 deleteme.md
+ignore.md
+.claude/settings.local.json
