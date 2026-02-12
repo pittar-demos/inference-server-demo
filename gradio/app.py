@@ -1,72 +1,125 @@
 import os
-import gradio as gr
-import asyncio
-import websockets
 import json
 import base64
+import asyncio
+import logging
 import numpy as np
+import gradio as gr
+import websockets
+from scipy.signal import resample
 
-# Env Vars
-VLLM_URL = os.getenv("VLLM_URL", "https://rhaiis-inference-demo.apps.prime.pitt.ca/v1")
+# Configure logging for OpenShift pod logs
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("VoxtralApp")
+
+# Configuration from OpenShift Env Vars
+VLLM_URL = os.getenv("VLLM_URL")
 MODEL_NAME = os.getenv("MODEL_NAME", "mistralai/Voxtral-Mini-4B-Realtime-2602")
 
-# Global state to keep the websocket alive
-state = {"ws": None, "transcript": ""}
+class VoxtralClient:
+    def __init__(self):
+        self.ws = None
+        self.transcript = ""
 
-async def get_connection():
-    if state["ws"] is None:
-        # Convert https://.../v1 to wss://.../v1/realtime
+    async def connect(self):
+        """Establish WebSocket connection with protocol swap and vLLM schema."""
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
         if not ws_url.endswith("/realtime"):
             ws_url = f"{ws_url.rstrip('/')}/realtime"
         
-        state["ws"] = await websockets.connect(ws_url)
-        # Initialize session
-        await state["ws"].send(json.dumps({
+        logger.info(f"Connecting to: {ws_url}")
+        self.ws = await websockets.connect(ws_url, ping_interval=20)
+        
+        # FIX: vLLM expects 'model' at the top level, not inside 'session'
+        init_event = {
             "type": "session.update",
-            "session": {"modalities": ["text"], "instructions": "Translate audio to English."}
-        }))
-    return state["ws"]
+            "model": MODEL_NAME,
+            "session": {
+                "modalities": ["text"],
+                "instructions": "Translate the following audio to English clearly and concisely.",
+                "input_audio_format": "pcm16",
+                "output_audio_format": "pcm16"
+            }
+        }
+        await self.ws.send(json.dumps(init_event))
+        logger.info("Session initialized successfully.")
 
-async def translate_audio(audio):
-    if audio is None: return state["transcript"]
-    
-    try:
-        ws = await get_connection()
-        sampling_rate, data = audio
-        
-        # Voxtral/vLLM expects PCM16 at 16kHz
-        # Convert Gradio's float32/int32 to base64 PCM16
-        audio_bytes = (data.astype(np.int16)).tobytes()
-        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
-        
-        # Append audio to vLLM buffer
-        await ws.send(json.dumps({
-            "type": "input_audio_buffer.append",
-            "audio": audio_b64
-        }))
-        
-        # Wait for a response (non-blocking)
-        # In a full app, you'd run a listener loop; here we check for recent events
-        resp = await asyncio.wait_for(ws.recv(), timeout=0.1)
-        resp_data = json.loads(resp)
-        
-        if resp_data.get("type") == "response.audio_transcription.delta":
-            state["transcript"] += resp_data.get("delta", "")
+    async def stream_audio(self, audio):
+        """Process chunks: Resample -> Encode -> Send -> Receive."""
+        if audio is None:
+            return self.transcript
+
+        try:
+            if self.ws is None or self.ws.closed:
+                await self.connect()
+
+            sr, data = audio
             
-    except Exception as e:
-        print(f"Error: {e}")
-        state["ws"] = None # Reset connection on error
-        
-    return state["transcript"]
+            # 1. Resample to 16kHz (Voxtral Standard)
+            target_sr = 16000
+            if sr != target_sr:
+                num_samples = int(len(data) * target_sr / sr)
+                data = resample(data, num_samples)
+            
+            # 2. Convert to PCM16 and Base64
+            audio_pcm16 = data.astype(np.int16).tobytes()
+            audio_b64 = base64.b64encode(audio_pcm16).decode("utf-8")
 
-with gr.Blocks() as demo:
-    gr.Markdown(f"### 🎙️ Voxtral Translator\n**Endpoint:** `{VLLM_URL}`")
+            # 3. Send to vLLM
+            await self.ws.send(json.dumps({
+                "type": "input_audio_buffer.append",
+                "audio": audio_b64
+            }))
+
+            # 4. Listen for transcription/translation deltas
+            # We use a short timeout so we don't block the next audio chunk
+            try:
+                while True:
+                    raw_resp = await asyncio.wait_for(self.ws.recv(), timeout=0.05)
+                    resp = json.loads(raw_resp)
+                    
+                    if resp.get("type") == "response.audio_transcription.delta":
+                        self.transcript += resp.get("delta", "")
+                    elif resp.get("type") == "error":
+                        logger.error(f"vLLM Error: {resp.get('error')}")
+            except asyncio.TimeoutError:
+                pass # No more messages for this chunk
+
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            self.ws = None # Trigger reconnect on next chunk
+            
+        return self.transcript
+
+# Persistent client state
+client_instance = VoxtralClient()
+
+# Gradio Interface
+with gr.Blocks(title="Voxtral Real-time Translator") as demo:
+    gr.Markdown(f"## 🎙️ Voxtral Real-time Gateway\n**Backend:** `{VLLM_URL}`")
+    
     with gr.Row():
-        audio_input = gr.Audio(sources=["microphone"], streaming=True)
-        output_text = gr.Textbox(label="Real-time Translation", placeholder="Speak to see translation...")
+        with gr.Column():
+            audio_input = gr.Audio(
+                sources=["microphone"], 
+                streaming=True, 
+                label="Speak Here"
+            )
+        with gr.Column():
+            output_text = gr.Textbox(
+                label="Live Translation (English)", 
+                interactive=False,
+                lines=10
+            )
 
-    audio_input.stream(fn=translate_audio, inputs=audio_input, outputs=output_text, show_progress="hidden")
+    # Audio stream triggers the async translation function
+    audio_input.stream(
+        fn=client_instance.stream_audio, 
+        inputs=[audio_input], 
+        outputs=[output_text],
+        show_progress="hidden"
+    )
 
 if __name__ == "__main__":
+    # OpenShift default port 8080
     demo.launch(server_name="0.0.0.0", server_port=8080)
