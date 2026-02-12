@@ -49,6 +49,10 @@ class VoxtralClient:
         else:
             logger.info("Connection established with Server VAD enabled.")
 
+    def get_transcript(self):
+        """Return the current transcript (for stop button)."""
+        return self.transcript
+
     async def stream_audio(self, audio):
         if audio is None:
             return self.transcript
@@ -82,6 +86,7 @@ class VoxtralClient:
                     "type": "input_audio_buffer.append",
                     "audio": audio_b64
                 }))
+                logger.info(f"Sent audio chunk, size: {len(audio_b64)}")
 
                 # Try to catch any incoming text deltas
                 try:
@@ -127,7 +132,17 @@ class VoxtralClient:
 
             # Connect to WebSocket
             async with self.lock:
-                if self.ws is None or not getattr(self.ws, "open", False):
+                # Use same connection check as streaming
+                is_open = False
+                if self.ws is not None:
+                    if hasattr(self.ws, 'open'):
+                        is_open = self.ws.open
+                    elif hasattr(self.ws, 'closed'):
+                        is_open = not self.ws.closed
+                    else:
+                        is_open = True
+
+                if not is_open:
                     await self.connect(send_commit=True, wait_for_session=True)
 
                 # Send audio in chunks with small delays to simulate real-time
@@ -215,7 +230,7 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
                 queue=False
             )
 
-            audio_in.stop_recording(fn=lambda: client.transcript, outputs=[text_out])
+            audio_in.stop_recording(fn=client.get_transcript, outputs=[text_out])
 
         with gr.Tab("📁 File Upload"):
             gr.Markdown("Upload an audio file for translation")
