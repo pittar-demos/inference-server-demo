@@ -65,6 +65,20 @@ class VoxtralClient:
         self.buffer_duration = 0.0
         return ""
 
+    async def stop_streaming(self):
+        """Gracefully stop streaming by closing the WebSocket connection."""
+        async with self.lock:
+            if self.ws is not None:
+                try:
+                    await self.ws.close()
+                    logger.info("WebSocket closed gracefully")
+                except Exception as e:
+                    logger.error(f"Error closing WebSocket: {e}")
+                finally:
+                    self.ws = None
+                    self.buffer_duration = 0.0
+        return self.transcript
+
     async def stream_audio(self, audio):
         if audio is None:
             return self.transcript
@@ -259,17 +273,7 @@ class VoxtralClient:
 
 client = VoxtralClient()
 
-with gr.Blocks(css="""
-    footer {visibility: hidden}
-    /* Hide all Stop buttons in audio streaming to prevent browser freeze */
-    /* Users should use the Clear button instead */
-    button.stop-recording-button,
-    button[title*="Stop"],
-    button[aria-label*="Stop"],
-    .audio-recorder button:nth-child(2) {
-        display: none !important;
-    }
-""") as demo:
+with gr.Blocks(css="footer {visibility: hidden}") as demo:
     gr.Markdown("### 🎙️ Voxtral Real-time Translation Gateway")
 
     with gr.Tabs():
@@ -282,13 +286,18 @@ with gr.Blocks(css="""
             with gr.Row():
                 clear_btn = gr.Button("🗑️ Clear Transcript", variant="secondary")
 
-            # Stream event with queue=False to prevent Stop hang in OpenShift
+            # Stream event with proper stop handling
             audio_in.stream(
                 fn=client.stream_audio,
                 inputs=[audio_in],
                 outputs=[text_out],
-                show_progress="hidden",
-                queue=False
+                show_progress="hidden"
+            )
+
+            # Handle stop recording gracefully
+            audio_in.stop_recording(
+                fn=client.stop_streaming,
+                outputs=[text_out]
             )
 
             clear_btn.click(fn=client.reset_transcript, outputs=[text_out])
