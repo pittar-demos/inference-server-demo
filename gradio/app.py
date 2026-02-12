@@ -98,15 +98,20 @@ class VoxtralClient:
             # Convert float32 [-1, 1] to int16 PCM16 format
             audio_data = (audio_data * 32767).astype(np.int16)
 
+            # Add silence at the end to help Server VAD detect end of speech
+            silence = np.zeros(8000, dtype=np.int16)  # 0.5 seconds of silence
+            audio_data = np.concatenate([audio_data, silence])
+
             # Connect to WebSocket
             async with self.lock:
                 if self.ws is None or not getattr(self.ws, "open", False):
                     await self.connect()
 
-                # Send audio in chunks (1 second chunks for better responsiveness)
+                # Send audio in chunks with small delays to simulate real-time
                 chunk_size = 16000  # 1 second at 16kHz
                 file_transcript = ""
 
+                logger.info(f"Sending {len(audio_data)} samples in chunks...")
                 for i in range(0, len(audio_data), chunk_size):
                     chunk = audio_data[i:i + chunk_size]
                     audio_b64 = base64.b64encode(chunk.tobytes()).decode("utf-8")
@@ -116,55 +121,48 @@ class VoxtralClient:
                         "audio": audio_b64
                     }))
 
-                    # Collect any immediate responses
-                    try:
-                        while True:
-                            raw = await asyncio.wait_for(self.ws.recv(), timeout=0.01)
-                            resp = json.loads(raw)
-                            t = resp.get("type")
+                    # Small delay to avoid overwhelming the VAD
+                    await asyncio.sleep(0.05)
 
-                            logger.info(f"Received response type: {t}")
+                logger.info("All audio sent. Waiting for transcription...")
 
-                            if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
-                                delta = resp.get("delta", "") or resp.get("transcript", "")
-                                if delta:
-                                    logger.info(f"Got delta: {delta[:50]}...")
-                                    file_transcript += delta
-                            elif t == "error":
-                                logger.error(f"vLLM Error: {resp.get('error')}")
-                                return f"Error: {resp.get('error')}"
-                    except asyncio.TimeoutError:
-                        pass
+                # Wait for transcription (Server VAD will trigger when it detects speech)
+                # Listen for up to 10 seconds for transcription deltas
+                start_time = asyncio.get_event_loop().time()
+                timeout = 10.0
 
-                # Signal that we're done sending audio - commit the buffer
-                logger.info("All audio sent. Committing audio buffer...")
-                await self.ws.send(json.dumps({
-                    "type": "input_audio_buffer.commit"
-                }))
-
-                # Wait for the complete response
                 try:
-                    while True:
-                        raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
+                    while asyncio.get_event_loop().time() - start_time < timeout:
+                        raw = await asyncio.wait_for(self.ws.recv(), timeout=1.0)
                         resp = json.loads(raw)
                         t = resp.get("type")
 
-                        logger.info(f"Received final response type: {t}, full response: {resp}")
+                        logger.info(f"Received response type: {t}")
 
-                        if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
-                            delta = resp.get("delta", "") or resp.get("transcript", "")
+                        if t == "transcription.delta":
+                            delta = resp.get("delta", "")
                             if delta:
-                                logger.info(f"Got final delta: {delta[:50]}...")
+                                logger.info(f"Got transcription delta: {delta[:50]}...")
                                 file_transcript += delta
                         elif t == "error":
                             error_msg = resp.get("error", {})
-                            logger.error(f"vLLM Error during response: {error_msg}")
+                            logger.error(f"vLLM Error: {error_msg}")
                             return f"Error: {error_msg.get('message', str(error_msg))}"
-                        elif t in ["response.done", "transcription.done"]:
-                            logger.info("Response complete.")
+                        elif t == "transcription.done":
+                            logger.info("Transcription complete.")
                             break
                 except asyncio.TimeoutError:
-                    logger.info("Timeout waiting for final response.")
+                    # Check if we got any transcript
+                    if not file_transcript:
+                        logger.info("Timeout waiting for transcription. Retrying once...")
+                        # Give it one more second
+                        try:
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=2.0)
+                            resp = json.loads(raw)
+                            if resp.get("type") == "transcription.delta":
+                                file_transcript += resp.get("delta", "")
+                        except asyncio.TimeoutError:
+                            pass
 
                 logger.info(f"File processing complete. Transcript length: {len(file_transcript)}")
                 return file_transcript if file_transcript else "No transcription received."
