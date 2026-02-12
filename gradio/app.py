@@ -79,6 +79,98 @@ class VoxtralClient:
                     self.buffer_duration = 0.0
         return self.transcript
 
+    async def stream_audio_translate(self, audio, source_lang, target_lang):
+        """Stream audio with translation from source to target language."""
+        if audio is None:
+            return self.transcript
+
+        async with self.lock:
+            try:
+                # Check connection state properly
+                is_open = False
+                if self.ws is not None:
+                    if hasattr(self.ws, 'open'):
+                        is_open = self.ws.open
+                    elif hasattr(self.ws, 'closed'):
+                        is_open = not self.ws.closed
+                    else:
+                        is_open = True
+
+                if not is_open:
+                    # Connect with translation instructions
+                    await self.connect_translate(source_lang, target_lang)
+                    self.buffer_duration = 0.0
+
+                sr, data = audio
+                if sr != 16000:
+                    data = resample(data, int(len(data) * 16000 / sr))
+
+                audio_b64 = base64.b64encode(data.astype(np.int16).tobytes()).decode("utf-8")
+
+                await self.ws.send(json.dumps({
+                    "type": "input_audio_buffer.append",
+                    "audio": audio_b64
+                }))
+
+                chunk_duration = len(data) / 16000.0
+                self.buffer_duration += chunk_duration
+
+                if self.buffer_duration >= self.commit_threshold:
+                    await self.ws.send(json.dumps({
+                        "type": "input_audio_buffer.commit"
+                    }))
+                    logger.info(f"Committed {self.buffer_duration:.2f}s for translation")
+                    self.buffer_duration = 0.0
+
+                    try:
+                        while True:
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=2.0)
+                            resp = json.loads(raw)
+                            t = resp.get("type")
+
+                            logger.info(f"Translation: received type={t}")
+
+                            if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
+                                delta = resp.get("delta", "") or resp.get("transcript", "")
+                                if delta:
+                                    logger.info(f"Translation: got delta '{delta[:50]}'")
+                                    self.transcript += delta
+                            elif t == "error":
+                                logger.error(f"vLLM Error: {resp.get('error')}")
+                    except asyncio.TimeoutError:
+                        pass
+
+            except Exception as e:
+                logger.error(f"Translation stream error: {e}")
+                self.ws = None
+
+        return self.transcript
+
+    async def connect_translate(self, source_lang, target_lang):
+        """Connect with translation-specific instructions."""
+        ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
+        if not ws_url.endswith("/realtime"):
+            ws_url = f"{ws_url.rstrip('/')}/realtime"
+
+        self.ws = await websockets.connect(ws_url, ping_interval=20, ping_timeout=20)
+
+        session_msg = await self.ws.recv()
+        logger.info(f"Received: {session_msg[:100]}")
+
+        session_config = {
+            "modalities": ["text"],
+            "instructions": f"Translate the audio from {source_lang} to {target_lang}. Output only the translation.",
+            "input_audio_format": "pcm16"
+        }
+
+        init_event = {
+            "type": "session.update",
+            "model": MODEL_NAME,
+            "session": session_config
+        }
+        await self.ws.send(json.dumps(init_event))
+        logger.info(f"Connection established for {source_lang} → {target_lang} translation.")
+
     async def stream_audio(self, audio):
         if audio is None:
             return self.transcript
@@ -301,6 +393,46 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
             )
 
             clear_btn.click(fn=client.reset_transcript, outputs=[text_out])
+
+        with gr.Tab("🌐 Translation Streaming"):
+            gr.Markdown("Translate speech between languages in real-time")
+
+            with gr.Row():
+                source_lang = gr.Dropdown(
+                    choices=["English", "French", "Spanish", "German", "Italian", "Portuguese", "Chinese", "Japanese", "Korean", "Arabic"],
+                    value="English",
+                    label="Source Language",
+                    scale=1
+                )
+                target_lang = gr.Dropdown(
+                    choices=["English", "French", "Spanish", "German", "Italian", "Portuguese", "Chinese", "Japanese", "Korean", "Arabic"],
+                    value="French",
+                    label="Target Language",
+                    scale=1
+                )
+
+            with gr.Row():
+                audio_in_translate = gr.Audio(sources=["microphone"], streaming=True, type="numpy")
+                text_out_translate = gr.Textbox(label="Translation", lines=10)
+
+            with gr.Row():
+                clear_btn_translate = gr.Button("🗑️ Clear Translation", variant="secondary")
+
+            # Stream event for translation
+            audio_in_translate.stream(
+                fn=client.stream_audio_translate,
+                inputs=[audio_in_translate, source_lang, target_lang],
+                outputs=[text_out_translate],
+                show_progress="hidden"
+            )
+
+            # Handle stop recording gracefully
+            audio_in_translate.stop_recording(
+                fn=client.stop_streaming,
+                outputs=[text_out_translate]
+            )
+
+            clear_btn_translate.click(fn=client.reset_transcript, outputs=[text_out_translate])
 
         with gr.Tab("📁 File Upload"):
             gr.Markdown("Upload an audio file for transcription")
