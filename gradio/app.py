@@ -86,7 +86,6 @@ class VoxtralClient:
                     "type": "input_audio_buffer.append",
                     "audio": audio_b64
                 }))
-                logger.info(f"Sent audio chunk, size: {len(audio_b64)}")
 
                 # Try to catch any incoming text deltas
                 try:
@@ -99,7 +98,9 @@ class VoxtralClient:
                         # Catching all possible text keys in vLLM/Voxtral
                         if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
                             delta = resp.get("delta", "") or resp.get("transcript", "")
-                            self.transcript += delta
+                            if delta:
+                                logger.info(f"Streaming: got delta '{delta[:50]}'")
+                                self.transcript += delta
                         elif t == "error":
                             logger.error(f"vLLM Error: {resp.get('error')}")
                 except asyncio.TimeoutError:
@@ -246,7 +247,9 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
                 queue=False
             )
 
-            audio_in.stop_recording(fn=client.get_transcript, outputs=[text_out])
+            # When recording stops, the stream function will be called with None
+            # and will return the current transcript, so no explicit handler needed
+            # audio_in.stop_recording(fn=client.get_transcript, outputs=[text_out])
 
         with gr.Tab("📁 File Upload"):
             gr.Markdown("Upload an audio file for translation")
