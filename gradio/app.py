@@ -121,10 +121,17 @@ class VoxtralClient:
                         while True:
                             raw = await asyncio.wait_for(self.ws.recv(), timeout=0.05)
                             resp = json.loads(raw)
+                            t = resp.get("type")
 
-                            if resp.get("type") in ["response.text.delta", "transcription.delta"]:
-                                file_transcript += resp.get("delta", "")
-                            elif resp.get("type") == "error":
+                            logger.info(f"Received response type: {t}")
+
+                            # Match streaming: catch all possible text keys
+                            if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
+                                delta = resp.get("delta", "") or resp.get("transcript", "")
+                                if delta:
+                                    logger.info(f"Got delta: {delta[:50]}...")
+                                    file_transcript += delta
+                            elif t == "error":
                                 logger.error(f"vLLM Error: {resp.get('error')}")
                                 return f"Error: {resp.get('error')}"
                     except asyncio.TimeoutError:
@@ -135,10 +142,15 @@ class VoxtralClient:
                     while True:
                         raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
                         resp = json.loads(raw)
+                        t = resp.get("type")
 
-                        if resp.get("type") in ["response.text.delta", "transcription.delta"]:
-                            file_transcript += resp.get("delta", "")
-                        elif resp.get("type") in ["response.done", "transcription.done"]:
+                        logger.info(f"Received final response type: {t}")
+
+                        if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
+                            delta = resp.get("delta", "") or resp.get("transcript", "")
+                            if delta:
+                                file_transcript += delta
+                        elif t in ["response.done", "transcription.done"]:
                             break
                 except asyncio.TimeoutError:
                     pass
