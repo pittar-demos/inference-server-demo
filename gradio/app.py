@@ -149,16 +149,22 @@ class VoxtralClient:
                         resp = json.loads(raw)
                         t = resp.get("type")
 
-                        logger.info(f"Received final response type: {t}")
+                        logger.info(f"Received final response type: {t}, full response: {resp}")
 
                         if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
                             delta = resp.get("delta", "") or resp.get("transcript", "")
                             if delta:
+                                logger.info(f"Got final delta: {delta[:50]}...")
                                 file_transcript += delta
+                        elif t == "error":
+                            error_msg = resp.get("error", {})
+                            logger.error(f"vLLM Error during response: {error_msg}")
+                            return f"Error: {error_msg.get('message', str(error_msg))}"
                         elif t in ["response.done", "transcription.done"]:
+                            logger.info("Response complete.")
                             break
                 except asyncio.TimeoutError:
-                    pass
+                    logger.info("Timeout waiting for final response.")
 
                 logger.info(f"File processing complete. Transcript length: {len(file_transcript)}")
                 return file_transcript if file_transcript else "No transcription received."
