@@ -50,9 +50,11 @@ class VoxtralClient:
         # Only send commit for file uploads, not for streaming
         if send_commit:
             await self.ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
-            logger.info("Connection established with Server VAD enabled (with commit).")
+            vad_status = "with Server VAD" if use_vad else "without Server VAD"
+            logger.info(f"Connection established {vad_status} (with initial commit).")
         else:
-            logger.info("Connection established with Server VAD enabled.")
+            vad_status = "with Server VAD" if use_vad else "without Server VAD (manual commit per chunk)"
+            logger.info(f"Connection established {vad_status}.")
 
     def reset_transcript(self):
         """Clear the transcript."""
@@ -93,6 +95,12 @@ class VoxtralClient:
                     "type": "input_audio_buffer.append",
                     "audio": audio_b64
                 }))
+
+                # Without Server VAD, we must manually commit to trigger processing
+                await self.ws.send(json.dumps({
+                    "type": "input_audio_buffer.commit"
+                }))
+                logger.info("Sent audio chunk with manual commit")
 
                 # Try to catch any incoming text deltas
                 # Use longer timeout for commodity hardware (RTX 5060 Ti needs time to process)
