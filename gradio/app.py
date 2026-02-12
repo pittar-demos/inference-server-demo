@@ -17,7 +17,7 @@ class VoxtralClient:
         self.transcript = ""
         self.lock = asyncio.Lock()
 
-    async def connect(self, send_commit=False, wait_for_session=True):
+    async def connect(self, send_commit=False, wait_for_session=True, use_vad=True):
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
         if not ws_url.endswith("/realtime"):
             ws_url = f"{ws_url.rstrip('/')}/realtime"
@@ -30,15 +30,20 @@ class VoxtralClient:
             session_msg = await self.ws.recv()
             logger.info(f"Received: {session_msg[:100]}")
 
+        # Configure session with or without Server VAD
+        session_config = {
+            "modalities": ["text"],
+            "instructions": "Translate audio to English. Output only the translation.",
+            "input_audio_format": "pcm16"
+        }
+
+        if use_vad:
+            session_config["turn_detection"] = {"type": "server_vad"}
+
         init_event = {
             "type": "session.update",
             "model": MODEL_NAME,
-            "session": {
-                "modalities": ["text"],
-                "instructions": "Translate audio to English. Output only the translation.",
-                "input_audio_format": "pcm16",
-                "turn_detection": {"type": "server_vad"} # Forces vLLM to detect when you stop talking
-            }
+            "session": session_config
         }
         await self.ws.send(json.dumps(init_event))
 
@@ -73,7 +78,8 @@ class VoxtralClient:
                         is_open = True
 
                 if not is_open:
-                    await self.connect()
+                    # Connect without Server VAD for streaming (VAD doesn't work with rapid chunks)
+                    await self.connect(use_vad=False)
 
                 sr, data = audio
                 # Strict 16kHz conversion
