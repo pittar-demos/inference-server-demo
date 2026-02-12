@@ -259,7 +259,17 @@ class VoxtralClient:
 
 client = VoxtralClient()
 
-with gr.Blocks(css="footer {visibility: hidden}") as demo:
+with gr.Blocks(css="""
+    footer {visibility: hidden}
+    /* Hide all Stop buttons in audio streaming to prevent browser freeze */
+    /* Users should use the Clear button instead */
+    button.stop-recording-button,
+    button[title*="Stop"],
+    button[aria-label*="Stop"],
+    .audio-recorder button:nth-child(2) {
+        display: none !important;
+    }
+""") as demo:
     gr.Markdown("### 🎙️ Voxtral Real-time Translation Gateway")
 
     with gr.Tabs():
