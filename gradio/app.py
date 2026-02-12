@@ -55,11 +55,19 @@ class VoxtralClient:
 
         async with self.lock:
             try:
-                ws_state = "None" if self.ws is None else f"open={getattr(self.ws, 'open', 'unknown')}"
-                logger.info(f"Stream audio called, ws state: {ws_state}")
+                # Check connection state properly
+                is_open = False
+                if self.ws is not None:
+                    # websockets library uses .open (bool) or .closed (bool) depending on version
+                    if hasattr(self.ws, 'open'):
+                        is_open = self.ws.open
+                    elif hasattr(self.ws, 'closed'):
+                        is_open = not self.ws.closed
+                    else:
+                        # Fallback: assume it's open if we have a ws object
+                        is_open = True
 
-                if self.ws is None or not getattr(self.ws, "open", False):
-                    logger.info("Reconnecting...")
+                if not is_open:
                     await self.connect()
 
                 sr, data = audio
