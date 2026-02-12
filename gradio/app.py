@@ -25,6 +25,9 @@ class VoxtralClient:
         # Increased timeout and ping for OpenShift stability
         self.ws = await websockets.connect(ws_url, ping_interval=20, ping_timeout=20)
 
+        # Wait for session.created from server
+        await self.ws.recv()
+
         init_event = {
             "type": "session.update",
             "model": MODEL_NAME,
@@ -36,6 +39,10 @@ class VoxtralClient:
             }
         }
         await self.ws.send(json.dumps(init_event))
+
+        # Signal ready - this is critical for vLLM to start processing audio!
+        await self.ws.send(json.dumps({"type": "input_audio_buffer.commit"}))
+
         logger.info("Connection established with Server VAD enabled.")
 
     async def stream_audio(self, audio):
