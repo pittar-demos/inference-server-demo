@@ -143,7 +143,8 @@ class VoxtralClient:
                         is_open = True
 
                 if not is_open:
-                    await self.connect(send_commit=True, wait_for_session=True)
+                    # Don't send commit - Server VAD will detect speech automatically
+                    await self.connect(send_commit=False, wait_for_session=True)
 
                 # Send audio in chunks with small delays to simulate real-time
                 chunk_size = 16000  # 1 second at 16kHz
