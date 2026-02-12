@@ -16,6 +16,9 @@ class VoxtralClient:
         self.ws = None
         self.transcript = ""
         self.lock = asyncio.Lock()
+        self.audio_buffer = []
+        self.buffer_duration = 0.0  # Track accumulated audio duration in seconds
+        self.commit_threshold = 2.0  # Commit every 2 seconds for better context
 
     async def connect(self, send_commit=False, wait_for_session=True, use_vad=True):
         ws_url = VLLM_URL.replace("https://", "wss://").replace("http://", "ws://")
@@ -57,8 +60,9 @@ class VoxtralClient:
             logger.info(f"Connection established {vad_status}.")
 
     def reset_transcript(self):
-        """Clear the transcript."""
+        """Clear the transcript and audio buffer."""
         self.transcript = ""
+        self.buffer_duration = 0.0
         return ""
 
     async def stream_audio(self, audio):
@@ -82,6 +86,7 @@ class VoxtralClient:
                 if not is_open:
                     # Connect without Server VAD for streaming (VAD doesn't work with rapid chunks)
                     await self.connect(use_vad=False)
+                    self.buffer_duration = 0.0  # Reset buffer on reconnect
 
                 sr, data = audio
                 # Strict 16kHz conversion
@@ -90,39 +95,47 @@ class VoxtralClient:
 
                 audio_b64 = base64.b64encode(data.astype(np.int16).tobytes()).decode("utf-8")
 
-                # Send audio chunk
+                # Send audio chunk to buffer immediately
                 await self.ws.send(json.dumps({
                     "type": "input_audio_buffer.append",
                     "audio": audio_b64
                 }))
 
-                # Without Server VAD, we must manually commit to trigger processing
-                await self.ws.send(json.dumps({
-                    "type": "input_audio_buffer.commit"
-                }))
-                logger.info("Sent audio chunk with manual commit")
+                # Track accumulated duration (data length / sample rate)
+                chunk_duration = len(data) / 16000.0
+                self.buffer_duration += chunk_duration
 
-                # Try to catch any incoming text deltas
-                # Use longer timeout for commodity hardware (RTX 5060 Ti needs time to process)
-                try:
-                    while True:
-                        raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
-                        resp = json.loads(raw)
-                        t = resp.get("type")
+                # Only commit when we've accumulated enough audio for context
+                should_commit = self.buffer_duration >= self.commit_threshold
 
-                        logger.info(f"Streaming: received type={t}")
+                if should_commit:
+                    await self.ws.send(json.dumps({
+                        "type": "input_audio_buffer.commit"
+                    }))
+                    logger.info(f"Committed {self.buffer_duration:.2f}s of audio for processing")
+                    self.buffer_duration = 0.0  # Reset buffer duration
 
-                        # Catching all possible text keys in vLLM/Voxtral
-                        if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
-                            delta = resp.get("delta", "") or resp.get("transcript", "")
-                            if delta:
-                                logger.info(f"Streaming: got delta '{delta[:50]}'")
-                                self.transcript += delta
-                        elif t == "error":
-                            logger.error(f"vLLM Error: {resp.get('error')}")
-                except asyncio.TimeoutError:
-                    # No response yet - VAD still waiting for silence
-                    pass
+                    # Try to catch any incoming text deltas
+                    # Use longer timeout for commodity hardware (RTX 5060 Ti needs time to process)
+                    try:
+                        while True:
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=1.0)
+                            resp = json.loads(raw)
+                            t = resp.get("type")
+
+                            logger.info(f"Streaming: received type={t}")
+
+                            # Catching all possible text keys in vLLM/Voxtral
+                            if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
+                                delta = resp.get("delta", "") or resp.get("transcript", "")
+                                if delta:
+                                    logger.info(f"Streaming: got delta '{delta[:50]}'")
+                                    self.transcript += delta
+                            elif t == "error":
+                                logger.error(f"vLLM Error: {resp.get('error')}")
+                    except asyncio.TimeoutError:
+                        # Processing might still be ongoing
+                        pass
 
             except Exception as e:
                 logger.error(f"Stream error: {e}")
