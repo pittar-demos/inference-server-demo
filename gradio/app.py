@@ -3,7 +3,7 @@ import numpy as np
 import gradio as gr
 import websockets
 from scipy.signal import resample
-from pydub import AudioSegment
+import librosa
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("VoxtralApp")
@@ -84,25 +84,23 @@ class VoxtralClient:
         return self.transcript
 
     async def process_file(self, file_path):
-        """Process an uploaded audio or video file for translation."""
+        """Process an uploaded audio file for translation."""
         if file_path is None:
             return "Please upload a file."
 
         try:
             logger.info(f"Processing file: {file_path}")
 
-            # Load audio/video file with pydub (handles both)
-            audio = AudioSegment.from_file(file_path)
+            # Load audio file with librosa (handles most audio formats)
+            # Automatically resamples to 16kHz and converts to mono
+            audio_data, sr = librosa.load(file_path, sr=16000, mono=True)
 
-            # Convert to 16kHz mono PCM16
-            audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
-
-            # Get raw audio data
-            audio_data = np.array(audio.get_array_of_samples(), dtype=np.int16)
+            # Convert float32 [-1, 1] to int16 PCM16 format
+            audio_data = (audio_data * 32767).astype(np.int16)
 
             # Connect to WebSocket
             async with self.lock:
-                if not self.is_connected():
+                if self.ws is None or not getattr(self.ws, "open", False):
                     await self.connect()
 
                 # Send audio in chunks (1 second chunks for better responsiveness)
@@ -176,12 +174,12 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
             audio_in.stop_recording(fn=lambda: client.transcript, outputs=[text_out])
 
         with gr.Tab("📁 File Upload"):
-            gr.Markdown("Upload an audio or video file for translation")
+            gr.Markdown("Upload an audio file for translation")
             with gr.Row():
                 with gr.Column():
                     file_in = gr.File(
-                        label="Upload Audio/Video File",
-                        file_types=["audio", "video"],
+                        label="Upload Audio File (WAV, MP3, FLAC, OGG, M4A, etc.)",
+                        file_types=["audio"],
                         type="filepath"
                     )
                     process_btn = gr.Button("🚀 Translate File", variant="primary")
