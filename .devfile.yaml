@@ -1,0 +1,33 @@
+schemaVersion: 2.2.2
+attributes:
+  controller.devfile.io/storage-type: per-workspace
+metadata:
+  name: "inference-demo"
+  provider: Andrew Pitt
+  displayName: Inference Server Demo
+  description: Running models with Red Hat AI Inference Server
+  tags:
+    - Demo
+    - YAML
+    - AI
+    - Claude
+  projectType: AI
+  language: YAML
+projects:
+  - name: "inference-demo"
+    git:
+      remotes:
+        origin: "https://github.com/pittar-demos/inference-server-demo"
+      checkoutFrom:
+        revision: "main"
+        remote: origin
+components:
+  - name: tools
+    container:
+      image: registry.redhat.io/devspaces/udi-rhel9:3.25.0
+      args: ['tail', '-f', '/dev/null']
+      mountSources: true
+      cpuLimit: '2'
+      cpuRequest: '1'
+      memoryLimit: '4G'
+      memoryRequest: '4G'
