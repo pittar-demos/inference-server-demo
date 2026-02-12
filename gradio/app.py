@@ -116,16 +116,15 @@ class VoxtralClient:
                         "audio": audio_b64
                     }))
 
-                    # Collect responses for this chunk
+                    # Collect any immediate responses
                     try:
                         while True:
-                            raw = await asyncio.wait_for(self.ws.recv(), timeout=0.05)
+                            raw = await asyncio.wait_for(self.ws.recv(), timeout=0.01)
                             resp = json.loads(raw)
                             t = resp.get("type")
 
                             logger.info(f"Received response type: {t}")
 
-                            # Match streaming: catch all possible text keys
                             if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
                                 delta = resp.get("delta", "") or resp.get("transcript", "")
                                 if delta:
@@ -137,7 +136,13 @@ class VoxtralClient:
                     except asyncio.TimeoutError:
                         pass
 
-                # Wait a bit for final responses
+                # Signal that we're done sending audio and want a response
+                logger.info("All audio sent. Requesting response from vLLM...")
+                await self.ws.send(json.dumps({
+                    "type": "response.create"
+                }))
+
+                # Wait for the complete response
                 try:
                     while True:
                         raw = await asyncio.wait_for(self.ws.recv(), timeout=0.5)
