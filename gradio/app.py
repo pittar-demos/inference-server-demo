@@ -36,7 +36,7 @@ class VoxtralClient:
         # Configure session with or without Server VAD
         session_config = {
             "modalities": ["text"],
-            "instructions": "Translate audio to English. Output only the translation.",
+            "instructions": "Transcribe the audio to text. Output only the transcription.",
             "input_audio_format": "pcm16"
         }
 
@@ -192,7 +192,7 @@ class VoxtralClient:
                 "model": MODEL_NAME,
                 "session": {
                     "modalities": ["text"],
-                    "instructions": "Translate audio to English. Output only the translation.",
+                    "instructions": "Transcribe the audio to text. Output only the transcription.",
                     "input_audio_format": "pcm16",
                     "turn_detection": {"type": "server_vad"}
                 }
@@ -274,14 +274,14 @@ class VoxtralClient:
 client = VoxtralClient()
 
 with gr.Blocks(css="footer {visibility: hidden}") as demo:
-    gr.Markdown("### 🎙️ Voxtral Real-time Translation Gateway")
+    gr.Markdown("### 🎙️ Voxtral Real-time Transcription Gateway")
 
     with gr.Tabs():
         with gr.Tab("🎤 Live Streaming"):
-            gr.Markdown("Speak into your microphone for real-time translation")
+            gr.Markdown("Speak into your microphone for real-time transcription")
             with gr.Row():
                 audio_in = gr.Audio(sources=["microphone"], streaming=True, type="numpy")
-                text_out = gr.Textbox(label="English Translation", lines=10)
+                text_out = gr.Textbox(label="Transcription", lines=10)
 
             with gr.Row():
                 clear_btn = gr.Button("🗑️ Clear Transcript", variant="secondary")
@@ -303,7 +303,7 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
             clear_btn.click(fn=client.reset_transcript, outputs=[text_out])
 
         with gr.Tab("📁 File Upload"):
-            gr.Markdown("Upload an audio file for translation")
+            gr.Markdown("Upload an audio file for transcription")
             with gr.Row():
                 with gr.Column():
                     file_in = gr.File(
@@ -311,9 +311,9 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
                         file_types=["audio"],
                         type="filepath"
                     )
-                    process_btn = gr.Button("🚀 Translate File", variant="primary")
+                    process_btn = gr.Button("🚀 Transcribe File", variant="primary")
                 with gr.Column():
-                    file_out = gr.Textbox(label="English Translation", lines=15, interactive=False)
+                    file_out = gr.Textbox(label="Transcription", lines=15, interactive=False)
 
             process_btn.click(
                 fn=client.process_file,
