@@ -76,7 +76,7 @@ class VoxtralClient:
                         t = resp.get("type")
 
                         # Catching all possible text keys in vLLM/Voxtral
-                        if t in ["response.text.delta", "response.audio_transcription.delta"]:
+                        if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
                             delta = resp.get("delta", "") or resp.get("transcript", "")
                             self.transcript += delta
                         elif t == "error":
