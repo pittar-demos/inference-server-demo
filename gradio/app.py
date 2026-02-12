@@ -49,9 +49,10 @@ class VoxtralClient:
         else:
             logger.info("Connection established with Server VAD enabled.")
 
-    def get_transcript(self):
-        """Return the current transcript (for stop button)."""
-        return self.transcript
+    def reset_transcript(self):
+        """Clear the transcript."""
+        self.transcript = ""
+        return ""
 
     async def stream_audio(self, audio):
         if audio is None:
@@ -94,6 +95,8 @@ class VoxtralClient:
                         raw = await asyncio.wait_for(self.ws.recv(), timeout=0.01)
                         resp = json.loads(raw)
                         t = resp.get("type")
+
+                        logger.info(f"Streaming: received type={t}")
 
                         # Catching all possible text keys in vLLM/Voxtral
                         if t in ["response.text.delta", "response.audio_transcription.delta", "transcription.delta"]:
@@ -238,6 +241,9 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
                 audio_in = gr.Audio(sources=["microphone"], streaming=True, type="numpy")
                 text_out = gr.Textbox(label="English Translation", lines=10)
 
+            with gr.Row():
+                clear_btn = gr.Button("🗑️ Clear Transcript", variant="secondary")
+
             # Stream event with queue=False to prevent Stop hang in OpenShift
             audio_in.stream(
                 fn=client.stream_audio,
@@ -247,9 +253,7 @@ with gr.Blocks(css="footer {visibility: hidden}") as demo:
                 queue=False
             )
 
-            # When recording stops, the stream function will be called with None
-            # and will return the current transcript, so no explicit handler needed
-            # audio_in.stop_recording(fn=client.get_transcript, outputs=[text_out])
+            clear_btn.click(fn=client.reset_transcript, outputs=[text_out])
 
         with gr.Tab("📁 File Upload"):
             gr.Markdown("Upload an audio file for translation")
