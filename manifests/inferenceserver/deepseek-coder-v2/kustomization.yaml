@@ -1,0 +1,49 @@
+namespace: inference-demo
+
+resources:
+  - ../base
+
+patches:
+- target:
+    kind: Deployment
+    name: rhaiis
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --model=/model/deepseek-coder-v2-lite
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --served-model-name=DeepSeek-Coder-V2-Lite-Instruct-FP8
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --quantization=fp8
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --gpu-memory-utilization=0.6
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --cpu-offload-gb=16
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --enforce-eager
+    # --- Resource Memory Patches ---
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 48Gi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 32Gi
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-num-seqs=4
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value: 
+        name: VLLM_USE_TRITON_MLA
+        value: "0"
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-model-len=8192 # Shorter context dramatically saves RAM
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --swap-space=4 # Limit the internal swap overhead
