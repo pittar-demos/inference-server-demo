@@ -22,13 +22,13 @@ spec:
     spec:
       containers:
         - name: anythingllm
-          image: 'quay.io/rh-aiservices-bu/anythingllm-workbench:1.8.5'
+          image: 'quay.io/rh-aiservices-bu/anythingllm-workbench:1.9.1'
           ports:
             - containerPort: 8888
               protocol: TCP
-          # envFrom:
-          #   - secretRef:
-          #       name: granite-config
+          envFrom:
+            - secretRef:
+                name: granite-config
           resources: {}
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File

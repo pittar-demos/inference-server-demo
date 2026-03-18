@@ -1,0 +1,43 @@
+namespace: inference-demo
+
+resources:
+  - ../base
+
+patches:
+- target:
+    kind: Deployment
+    name: rhaiis
+  patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --model=/model/mistral-nemo-instruct-12b
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --served-model-name=Mistral-Nemo-Instruct-2407-FP8
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --quantization=fp8
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --gpu-memory-utilization=0.75
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --cpu-offload-gb=4
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --enforce-eager
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 48Gi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 24Gi
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-num-seqs=1
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-model-len=8192
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value: { name: FLASHINFER_DISABLE_JIT, value: "1" }
