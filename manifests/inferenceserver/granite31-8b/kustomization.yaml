@@ -16,7 +16,7 @@ patches:
       value: --served-model-name=granite-3.1-8b-instruct-quantized.w4a16
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --max-model-len=59520
+      value: --max-model-len=50000
     - op: add
       path: /spec/template/spec/containers/0/args/-
       value: --enable-auto-tool-choice
