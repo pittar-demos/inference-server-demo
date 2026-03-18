@@ -10,7 +10,10 @@ patches:
   patch: |-
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --model=/model/granite40htiny
+      value: --model=/model/granite40tiny
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --served-model-name=granite-4.0-h-tiny
+      value: --served-model-name=granite-4.0-h-tiny-FP8-dynamic
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --tool-call-parser=granite4
