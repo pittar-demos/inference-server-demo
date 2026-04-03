@@ -16,7 +16,7 @@ patches:
       value: --served-model-name=granite-4.0-h-tiny-FP8-dynamic
     - op: add
       path: /spec/template/spec/containers/0/args/-
-      value: --tool-call-parser=granite
+      value: --tool-call-parser=hermes
     - op: add
       path: /spec/template/spec/containers/0/args/-
       value: --enable-auto-tool-choice

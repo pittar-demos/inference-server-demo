@@ -1,0 +1,33 @@
+namespace: inference-demo
+
+resources:
+  - ../base
+
+patches:
+- target:
+    kind: Deployment
+    name: rhaiis
+  patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: registry.redhat.io/rhaii-preview/vllm-cuda-rhel9:gemma4
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: HF_HUB_OFFLINE
+        value: "1"
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --model=/model/gemma-4-E2B-it
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --served-model-name=gemma-4-E2B-it
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --max-num-seqs=1
+    - op: add
+      path: /spec/template/spec/containers/0/args/-
+      value: --gpu-memory-utilization=0.90
+    - op: replace
+      path: /spec/template/spec/containers/0/args/1
+      value: --tensor-parallel-size=1
