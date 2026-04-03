@@ -31,3 +31,12 @@ patches:
     - op: replace
       path: /spec/template/spec/containers/0/args/1
       value: --tensor-parallel-size=1
+    - op: replace
+      path: /spec/template/spec/containers/0/args/1
+      value: --enable-auto-tool-choice
+    - op: replace
+      path: /spec/template/spec/containers/0/args/1
+      value: --tool-call-parser=gemma4
+    - op: replace
+      path: /spec/template/spec/containers/0/args/1
+      value: --reasoning-parser=gemma4
