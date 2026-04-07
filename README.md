@@ -1,5 +1,7 @@
 # Red Hat AI Inference Server (vLLM) Demo
 
+[Open In Dev Spaces](https://devspaces.apps.prime.pitt.ca/#https://github.com/pittar-demos/inference-server-demo)
+
 In this demo, we will run a [Granite model](https://huggingface.co/RedHatAI/granite-3.1-8b-instruct-quantized.w4a16) using Red Hat AI Inference Server (vLLM) on OpenShift.
 
 ## Prerequisites
