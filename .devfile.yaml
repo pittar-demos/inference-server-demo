@@ -24,10 +24,18 @@ projects:
 components:
   - name: tools
     container:
-      image: registry.redhat.io/devspaces/udi-rhel9:3.25.0
+      image: quay.io/pittar/custom-udi-demo:latest
       args: ['tail', '-f', '/dev/null']
       mountSources: true
       cpuLimit: '2'
       cpuRequest: '1'
       memoryLimit: '4G'
       memoryRequest: '4G'
+commands:
+  - id: configure-opencode
+    exec:
+      component: tools
+      commandLine: "mkdir -p /home/user/.config/opencode && cp /data/opencode/*.* /home/user/.config/opencode/"
+events:
+  postStart:
+    - configure-opencode
