@@ -1,0 +1,36 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels:
+    deployment: rhaiis
+    service: rhaiis
+  name: rhaiis
+spec:
+  hostnames:
+    - api.rhcl.prime.pitt.ca
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: kuadrant-gateway
+      namespace: kuadrant-gateway
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: rhaiis
+          port: 80
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /v1
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: rhaiis
+          port: 80
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /health

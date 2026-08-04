@@ -1,0 +1,14 @@
+kind: Secret
+apiVersion: v1
+metadata:
+  name: rhaiis-user-andrew
+  namespace: kuadrant-system
+  labels:
+    app: rhaiis
+    authorino.kuadrant.io/managed-by: authorino
+  annotations:
+    secret.kuadrant.io/groups: pro
+    secret.kuadrant.io/user-id: andrew
+stringData:
+  api_key: IAMANDREW
+type: Opaque

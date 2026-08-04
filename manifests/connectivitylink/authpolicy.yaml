@@ -1,0 +1,37 @@
+apiVersion: kuadrant.io/v1
+kind: AuthPolicy
+metadata:
+  name: rhaiis-auth
+spec:
+  rules:
+    authentication:
+      api-key-users:
+        apiKey:
+          allNamespaces: true
+          selector:
+            matchLabels:
+              app: rhaiis
+        credentials:
+          authorizationHeader:
+            prefix: Bearer
+        metrics: false
+        priority: 0
+    response:
+      success:
+        filters:
+          identity:
+            json:
+              properties:
+                groups:
+                  selector: auth.identity.metadata.annotations.secret\.kuadrant\.io/groups
+                userid:
+                  selector: auth.identity.metadata.annotations.secret\.kuadrant\.io/user-id
+            metrics: false
+            priority: 0
+  strategy: atomic
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: rhaiis
+  when:
+    - predicate: "request.path != '/health'"

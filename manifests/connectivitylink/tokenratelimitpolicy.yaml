@@ -1,0 +1,31 @@
+apiVersion: kuadrant.io/v1alpha1
+kind: TokenRateLimitPolicy
+metadata:
+  name: rhaiis-token-rlp
+  namespace: inference-demo
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: rhaiis
+  limits:
+    free-users:
+      counters:
+        - expression: auth.identity.userid
+      rates:
+        - limit: 1000
+          window: 24h
+      when:
+        - predicate: request.path == "/v1/chat/completions"
+        - predicate: |
+            has(auth.identity.groups) && auth.identity.groups == "free"
+    pro-users:
+      counters:
+        - expression: auth.identity.userid
+      rates:
+        - limit: 100000
+          window: 24h
+      when:
+        - predicate: request.path == "/v1/chat/completions"
+        - predicate: |
+            has(auth.identity.groups) && auth.identity.groups == "pro"

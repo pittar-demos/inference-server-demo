@@ -1,0 +1,39 @@
+apiVersion: perses.dev/v1alpha2
+kind: PersesDashboard
+metadata:
+  name: inference-metrics
+  namespace: inference-demo
+spec:
+  config:
+    display:
+      name: "Inference Demo Metrics"
+    duration: 1h
+    panels:
+      inference-rate:
+        kind: Panel
+        spec:
+          display:
+            name: "Inference Request Rate"
+          plugin:
+            kind: TimeSeriesChart
+            spec: {} # Fix 1: Added required empty spec for TimeSeriesChart
+          queries:
+            - kind: TimeSeriesQuery # Fix 2: Wrapped in TimeSeriesQuery
+              spec:
+                plugin: # Fix 2: Nested PrometheusTimeSeriesQuery inside plugin
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    datasource:
+                      kind: PrometheusDatasource
+                      name: global-workload-prometheus
+                    query: rate(vllm:num_requests_running[5m])
+    layouts:
+      - kind: Grid
+        spec:
+          items:
+            - x: 0
+              y: 0
+              width: 12
+              height: 6
+              content:
+                "$ref": "#/spec/panels/inference-rate"

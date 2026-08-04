@@ -1,0 +1,14 @@
+kind: Secret
+apiVersion: v1
+metadata:
+  name: rhaiis-user-elsie
+  namespace: kuadrant-system
+  labels:
+    app: rhaiis
+    authorino.kuadrant.io/managed-by: authorino
+  annotations:
+    secret.kuadrant.io/groups: pro
+    secret.kuadrant.io/user-id: elsie
+stringData:
+  api_key: IAMELSIE
+type: Opaque
