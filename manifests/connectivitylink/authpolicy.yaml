@@ -14,7 +14,7 @@ spec:
         credentials:
           authorizationHeader:
             prefix: Bearer
-        metrics: false
+        metrics: true
         priority: 0
     response:
       success:
